@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using Fusion;
 using Fusion.Sockets;
 using UnityEngine;
@@ -16,6 +17,8 @@ namespace AuctionGame.Fusion
         [SerializeField] private string sessionName = "auction-local";
         [SerializeField] private int initialAssets = 100;
         [SerializeField] private int playerCount = 4;
+        [SerializeField, Min(1)] private int dedicatedServerStartAttempts = 3;
+        [SerializeField, Min(0.1f)] private float dedicatedServerRetryDelaySeconds = 1f;
 
         private readonly Dictionary<PlayerRef, AuctionConnection> _connectionByPlayer = new Dictionary<PlayerRef, AuctionConnection>();
         private NetworkRunner _runner;
@@ -25,16 +28,25 @@ namespace AuctionGame.Fusion
         private float _settlementElapsed;
         private float _viewSyncElapsed;
         private bool _starting;
+        private bool _dedicatedServerRestartPending;
+        private bool _isQuitting;
 
         public AuctionWireView CurrentView { get; private set; }
         public string Status { get; private set; } = "尚未连接";
+        public bool IsStarting => _starting;
+        public bool CanStartClient => !_starting && _runner == null;
 
         private void Start()
         {
-            if (Application.isBatchMode || HasCommandLineArgument("-auctionServer"))
+            if (IsDedicatedServer())
             {
                 StartDedicatedServer();
             }
+        }
+
+        private void OnApplicationQuit()
+        {
+            _isQuitting = true;
         }
 
         private void Update()
@@ -175,7 +187,30 @@ namespace AuctionGame.Fusion
         public void OnSceneLoadDone(NetworkRunner runner) { }
         public void OnSceneLoadStart(NetworkRunner runner) { }
         public void OnSessionListUpdated(NetworkRunner runner, List<SessionInfo> sessionList) { }
-        public void OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason) { }
+        public void OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason)
+        {
+            if (!ReferenceEquals(runner, _runner))
+            {
+                return;
+            }
+
+            _runner = null;
+            CurrentView = null;
+            if (!_starting)
+            {
+                Status = IsDedicatedServer()
+                    ? $"专用服务端连接已关闭：{shutdownReason}。正在重新启动。"
+                    : $"连接已关闭：{shutdownReason}。请重新连接。";
+                Debug.LogWarning(Status);
+            }
+            Destroy(runner.gameObject);
+
+            if (IsDedicatedServer() && !_isQuitting && isActiveAndEnabled)
+            {
+                ResetDedicatedServerMatch();
+                RestartDedicatedServerAfterDisconnect();
+            }
+        }
         public void OnUserSimulationMessage(NetworkRunner runner, SimulationMessagePtr message) { }
 
         private async void StartRunner(GameMode gameMode)
@@ -186,31 +221,144 @@ namespace AuctionGame.Fusion
             }
 
             _starting = true;
-            Status = gameMode == GameMode.Server ? "正在启动专用服务端" : "正在连接专用服务端";
-            _runner = gameObject.AddComponent<NetworkRunner>();
-            _runner.AddCallbacks(this);
+            var attemptCount = gameMode == GameMode.Server ? dedicatedServerStartAttempts : 1;
+            var lastFailure = string.Empty;
 
             try
             {
-                await _runner.StartGame(new StartGameArgs
+                for (var attempt = 1; attempt <= attemptCount; attempt++)
                 {
-                    GameMode = gameMode,
-                    SessionName = sessionName,
-                    PlayerCount = playerCount,
-                    IsVisible = false,
-                    IsOpen = true
-                });
-                Status = gameMode == GameMode.Server ? "专用服务端已启动" : Status;
-            }
-            catch (Exception exception)
-            {
-                Status = $"启动失败：{exception.Message}";
-                Debug.LogException(exception);
+                    Status = GetStartingStatus(gameMode, attempt, attemptCount);
+                    var runner = CreateRunner();
+                    runner.AddCallbacks(this);
+
+                    try
+                    {
+                        var result = await runner.StartGame(new StartGameArgs
+                        {
+                            GameMode = gameMode,
+                            SessionName = sessionName,
+                            PlayerCount = playerCount,
+                            IsVisible = false,
+                            IsOpen = true
+                        });
+
+                        if (result.Ok)
+                        {
+                            _runner = runner;
+                            Status = gameMode == GameMode.Server ? "专用服务端已启动" : "已连接到专用服务端";
+                            Debug.Log(Status);
+                            return;
+                        }
+
+                        lastFailure = DescribeStartFailure(result.ShutdownReason, result.ErrorMessage);
+                    }
+                    catch (Exception exception)
+                    {
+                        lastFailure = exception.Message;
+                        Debug.LogException(exception);
+                    }
+
+                    DisposeFailedRunner(runner);
+                    if (attempt < attemptCount)
+                    {
+                        Status = $"专用服务端启动失败：{lastFailure}。{dedicatedServerRetryDelaySeconds:0.#} 秒后重试（{attempt + 1}/{attemptCount}）";
+                        Debug.LogWarning(Status);
+                        await Task.Delay(Mathf.CeilToInt(dedicatedServerRetryDelaySeconds * 1000f));
+                    }
+                }
+
+                Status = gameMode == GameMode.Server
+                    ? $"专用服务端启动失败（已尝试 {attemptCount} 次）：{lastFailure}"
+                    : $"连接失败：{lastFailure}。请重新连接。";
+                Debug.LogError(Status);
             }
             finally
             {
                 _starting = false;
             }
+        }
+
+        private static string GetStartingStatus(GameMode gameMode, int attempt, int attemptCount)
+        {
+            if (gameMode != GameMode.Server)
+            {
+                return "正在连接专用服务端";
+            }
+
+            return $"正在启动专用服务端（{attempt}/{attemptCount}）";
+        }
+
+        private static string DescribeStartFailure(ShutdownReason shutdownReason, string errorMessage)
+        {
+            return string.IsNullOrWhiteSpace(errorMessage)
+                ? shutdownReason.ToString()
+                : $"{shutdownReason}：{errorMessage}";
+        }
+
+        private async void RestartDedicatedServerAfterDisconnect()
+        {
+            if (_dedicatedServerRestartPending)
+            {
+                return;
+            }
+
+            _dedicatedServerRestartPending = true;
+            Status = $"专用服务端将在 {dedicatedServerRetryDelaySeconds:0.#} 秒后重新启动。";
+            Debug.LogWarning(Status);
+
+            try
+            {
+                await Task.Delay(Mathf.CeilToInt(dedicatedServerRetryDelaySeconds * 1000f));
+                if (!_isQuitting && isActiveAndEnabled && _runner == null)
+                {
+                    StartDedicatedServer();
+                }
+            }
+            finally
+            {
+                _dedicatedServerRestartPending = false;
+            }
+        }
+
+        private void ResetDedicatedServerMatch()
+        {
+            _connectionByPlayer.Clear();
+            _session = null;
+            _match = null;
+            _settlementElapsed = 0f;
+            _viewSyncElapsed = 0f;
+            _lastBroadcastPhase = AuctionPhase.WaitingForPlayers;
+        }
+
+        private void DisposeFailedRunner(NetworkRunner runner)
+        {
+            if (runner == null)
+            {
+                return;
+            }
+
+            runner.RemoveCallbacks(this);
+            if (runner.IsRunning)
+            {
+                runner.Shutdown();
+            }
+            else
+            {
+                Destroy(runner.gameObject);
+            }
+        }
+
+        private NetworkRunner CreateRunner()
+        {
+            var runnerObject = new GameObject("Auction Network Runner");
+            DontDestroyOnLoad(runnerObject);
+            return runnerObject.AddComponent<NetworkRunner>();
+        }
+
+        private static bool IsDedicatedServer()
+        {
+            return Application.isBatchMode || HasCommandLineArgument("-auctionServer");
         }
 
         private void SendAction(AuctionActionMessage action)

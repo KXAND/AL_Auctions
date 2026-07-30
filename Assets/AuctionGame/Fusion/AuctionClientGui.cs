@@ -31,10 +31,16 @@ namespace AuctionGame.Fusion
             var view = session.CurrentView;
             if (view == null)
             {
-                if (GUILayout.Button("连接本地专用服务端"))
+                var previousGuiEnabled = GUI.enabled;
+                GUI.enabled = session.CanStartClient;
+                var buttonLabel = session.IsStarting
+                    ? "正在连接专用服务端..."
+                    : session.Status == "尚未连接" ? "连接本地专用服务端" : "重新连接本地专用服务端";
+                if (GUILayout.Button(buttonLabel))
                 {
                     session.StartClient();
                 }
+                GUI.enabled = previousGuiEnabled;
 
                 GUILayout.EndArea();
                 return;

@@ -8,9 +8,10 @@ public static class InputEx {
 	}
 
 	public static bool IsAnyKeyPressedThisFrame() {
-		if(Mouse.current != null) {
+		var camera = TemplateGameManager.Instance?.Camera;
+		if(Mouse.current != null && camera != null) {
 			Vector3 mousePos = Mouse.current.position.ReadValue();
-			Vector3 mouseViewPos = TemplateGameManager.Instance.Camera.ScreenToViewportPoint(mousePos);
+			Vector3 mouseViewPos = camera.ScreenToViewportPoint(mousePos);
 
 			if (
 				(	Mouse.current.leftButton.wasReleasedThisFrame ||
