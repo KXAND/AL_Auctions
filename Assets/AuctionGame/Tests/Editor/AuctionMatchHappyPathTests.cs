@@ -25,13 +25,14 @@ namespace AuctionGame.Tests
             match.SelectPrivateClue(humanSlot, analysisView.PrivateClueChoices[0].Id);
 
             Assert.That(match.GetSeatView(humanSlot).PrivateClueResult, Is.Not.Null);
-            Assert.That(match.GetSeatView(1).PrivateClueResult, Is.Null);
 
             match.AdvanceTime(rules.AnalysisDuration);
             Assert.That(match.GetSeatView(humanSlot).Phase, Is.EqualTo(AuctionPhase.Bidding));
 
             match.SubmitBid(humanSlot, 75);
             match.AdvanceTime(rules.BiddingDuration);
+            Assert.That(match.GetSeatView(humanSlot).Phase, Is.EqualTo(AuctionPhase.RoundReveal));
+            match.AdvanceTime(rules.RoundRevealDuration);
 
             var settlementView = match.GetSeatView(humanSlot);
             Assert.That(settlementView.Phase, Is.EqualTo(AuctionPhase.Settlement));

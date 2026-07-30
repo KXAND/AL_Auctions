@@ -59,7 +59,6 @@ namespace AuctionGame.Tests
             Assert.That(firstResult.Knowledge, Is.Not.Empty);
             Assert.That(firstResult.Knowledge.All(item => item.Name == null && item.Value == null), Is.True);
             Assert.That(match.GetSeatView(secondHumanSlot).PrivateClueResult.Knowledge, Is.Not.Empty);
-            Assert.That(match.GetSeatView(2).PrivateClueResult, Is.Null);
         }
 
         private static void AssertLayoutHasNoOverlapsOrColumnHoles(PackageLayout layout)

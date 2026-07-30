@@ -40,8 +40,16 @@ namespace AuctionGame.Fusion
                 return;
             }
 
+            if (view.IsWaitingForNextMatch)
+            {
+                GUILayout.Label("当前对局已开始，正在等待下一局");
+                GUILayout.EndArea();
+                return;
+            }
+
             GUILayout.Label($"阶段：{ToChinesePhase(view.Phase)}");
             GUILayout.Label($"可用资产：{view.AvailableAssets}");
+            GUILayout.Label($"倒计时：{Mathf.CeilToInt(view.RemainingSeconds)} 秒");
             GUILayout.Label(view.PublicClue);
             DrawHiddenGrid(view.GridWidth, view.GridHeight);
 
@@ -82,6 +90,24 @@ namespace AuctionGame.Fusion
                 GUILayout.Label(view.WinnerSlot < 0
                     ? "本轮未成交"
                     : $"席位 {view.WinnerSlot + 1} 以 {view.WinningBid} 成交");
+
+                foreach (var item in view.SettlementPackage)
+                {
+                    GUILayout.Label($"包裹真值：{item.Name}，价值 {item.Value}，位置({item.X},{item.Y})");
+                }
+            }
+
+            if (view.RoundReveal != null)
+            {
+                GUILayout.Label($"第 {view.RoundReveal.Round} 轮揭示");
+                GUILayout.Label(view.RoundReveal.WinnerSlot < 0
+                    ? "本轮结果：未成交"
+                    : $"本轮结果：席位 {view.RoundReveal.WinnerSlot + 1} 以 {view.RoundReveal.WinningBid} 成交");
+                foreach (var seat in view.RoundReveal.Seats)
+                {
+                    var clue = string.IsNullOrEmpty(seat.ClueKind) ? "未选择" : seat.ClueKind;
+                    GUILayout.Label($"席位 {seat.SeatIndex + 1}：出价 {seat.Bid}，线索 {clue}");
+                }
             }
 
             GUILayout.EndArea();
@@ -108,6 +134,7 @@ namespace AuctionGame.Fusion
             {
                 case "Analysis": return "分析阶段";
                 case "Bidding": return "出价阶段";
+                case "RoundReveal": return "回合揭示";
                 case "Settlement": return "结算阶段";
                 default: return "等待中";
             }
