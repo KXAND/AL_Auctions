@@ -22,6 +22,15 @@ namespace AuctionGame
             if (_phase != AuctionPhase.WaitingForPlayers) throw new InvalidOperationException("对局开始后不能加入席位。");
             var seat = _seats.FirstOrDefault(item => item.Controller == SeatController.None) ?? throw new InvalidOperationException("没有可用席位。"); seat.AssignHuman(_rules.InitialAssets); return seat.Index;
         }
+
+        public void DisconnectHuman(int seatIndex)
+        {
+            var seat = Seat(seatIndex);
+            if (seat.Controller != SeatController.Human) throw new InvalidOperationException("只有真人席位可以断线接管。");
+            seat.AssignAi(seat.AvailableAssets, discardSettlement: true);
+        }
+
+        public bool IsAiControlled(int seatIndex) => Seat(seatIndex).Controller == SeatController.Ai;
         public void Start()
         {
             if (_phase != AuctionPhase.WaitingForPlayers) throw new InvalidOperationException("对局已经开始。");
@@ -79,11 +88,12 @@ namespace AuctionGame
             }
             var winner = ranked[0]; var second = ranked.Length == 1 ? 0 : ranked[1].Bid; var multiplier = _round <= _rules.WinningMultipliers.Count ? _rules.WinningMultipliers[_round - 1] : _rules.FinalWinningMultiplier;
             if (ranked.Length > 1 && winner.Bid < multiplier * second) { _round++; BeginAnalysis(); return; }
-            var delta = _package.TotalValue - winner.Bid; winner.ChangeAssets(delta);
+            var delta = _package.TotalValue - winner.Bid;
+            if (!winner.DiscardSettlement) winner.ChangeAssets(delta);
             if (delta < 0)
             {
                 var each = (int)Math.Floor(_rules.LossDistributionRatio * -delta / (_seats.Count - 1));
-                foreach (var seat in _seats.Where(item => item != winner)) seat.ChangeAssets(each);
+                foreach (var seat in _seats.Where(item => item != winner && !item.DiscardSettlement)) seat.ChangeAssets(each);
             }
             _settlement = new AuctionSettlement(winner.Index, winner.Bid); _phase = AuctionPhase.Settlement; _remaining = TimeSpan.Zero;
         }
@@ -91,8 +101,8 @@ namespace AuctionGame
         private void Ensure(AuctionPhase phase) { if (_phase != phase) throw new InvalidOperationException("当前不接受该席位动作。"); }
         private sealed class AuctionSeat
         {
-            public AuctionSeat(int index) { Index = index; } public int Index { get; } public SeatController Controller { get; private set; } public int AvailableAssets { get; private set; } public int Bid { get; private set; } public long AcceptedBidOrder { get; private set; } public bool HasSubmittedBid { get; private set; } public PrivateClueResult PrivateClueResult { get; private set; } public List<CollectibleKnowledge> Knowledge { get; } = new List<CollectibleKnowledge>();
-            public void AssignHuman(int assets) { Controller = SeatController.Human; AvailableAssets = assets; } public void AssignAi(int assets) { Controller = SeatController.Ai; AvailableAssets = assets; } public void BeginRound() { Bid = 0; AcceptedBidOrder = 0; HasSubmittedBid = false; PrivateClueResult = null; } public void SetPrivateClue(PrivateClueResult value) { PrivateClueResult = value; Knowledge.AddRange(value.Knowledge); } public void SetBid(int value, long order) { Bid = value; AcceptedBidOrder = order; HasSubmittedBid = true; } public void ChangeAssets(int value) => AvailableAssets += value;
+            public AuctionSeat(int index) { Index = index; } public int Index { get; } public SeatController Controller { get; private set; } public bool DiscardSettlement { get; private set; } public int AvailableAssets { get; private set; } public int Bid { get; private set; } public long AcceptedBidOrder { get; private set; } public bool HasSubmittedBid { get; private set; } public PrivateClueResult PrivateClueResult { get; private set; } public List<CollectibleKnowledge> Knowledge { get; } = new List<CollectibleKnowledge>();
+            public void AssignHuman(int assets) { Controller = SeatController.Human; DiscardSettlement = false; AvailableAssets = assets; } public void AssignAi(int assets, bool discardSettlement = false) { Controller = SeatController.Ai; DiscardSettlement = discardSettlement; AvailableAssets = assets; } public void BeginRound() { Bid = 0; AcceptedBidOrder = 0; HasSubmittedBid = false; PrivateClueResult = null; } public void SetPrivateClue(PrivateClueResult value) { PrivateClueResult = value; Knowledge.AddRange(value.Knowledge); } public void SetBid(int value, long order) { Bid = value; AcceptedBidOrder = order; HasSubmittedBid = true; } public void ChangeAssets(int value) => AvailableAssets += value;
         }
         private sealed class AuctionSettlement { public AuctionSettlement(int winnerSlot, int winningBid) { WinnerSlot = winnerSlot; WinningBid = winningBid; } public int WinnerSlot { get; } public int WinningBid { get; } }
         private enum SeatController { None, Human, Ai }

@@ -138,7 +138,17 @@ namespace AuctionGame.Fusion
         public void OnInputMissing(NetworkRunner runner, PlayerRef player, NetworkInput input) { }
         public void OnObjectEnterAOI(NetworkRunner runner, NetworkObject obj, PlayerRef player) { }
         public void OnObjectExitAOI(NetworkRunner runner, NetworkObject obj, PlayerRef player) { }
-        public void OnPlayerLeft(NetworkRunner runner, PlayerRef player) { }
+        public void OnPlayerLeft(NetworkRunner runner, PlayerRef player)
+        {
+            if (!runner.IsServer || _match == null || !_seatByPlayer.TryGetValue(player, out var seatIndex))
+            {
+                return;
+            }
+
+            _match.DisconnectHuman(seatIndex);
+            _seatByPlayer.Remove(player);
+            BroadcastViews();
+        }
         public void OnReliableDataProgress(NetworkRunner runner, PlayerRef player, ReliableKey key, float progress) { }
         public void OnSceneLoadDone(NetworkRunner runner) { }
         public void OnSceneLoadStart(NetworkRunner runner) { }
