@@ -6,8 +6,10 @@ namespace AuctionGame.Fusion
     public sealed class AuctionClientGui : MonoBehaviour
     {
         [SerializeField] private AuctionFusionSession session;
+        private AuctionLocalSession localSession;
 
         private string _bidText = "75";
+        private IAuctionPresentationSession _activeSession;
 
         private void Awake()
         {
@@ -15,35 +17,51 @@ namespace AuctionGame.Fusion
             {
                 session = GetComponent<AuctionFusionSession>();
             }
+
+            if (localSession == null)
+            {
+                localSession = GetComponent<AuctionLocalSession>();
+            }
         }
 
         private void OnGUI()
         {
-            if (session == null)
+            GUILayout.BeginArea(new Rect(24, 24, 500, 640), GUI.skin.box);
+            if (_activeSession == null)
             {
+                DrawModeSelection();
+                GUILayout.EndArea();
                 return;
             }
 
-            GUILayout.BeginArea(new Rect(24, 24, 500, 640), GUI.skin.box);
-            GUILayout.Label("联网竞拍演示");
+            var session = _activeSession;
+            var isLocalPlaytest = ReferenceEquals(session, localSession);
+            GUILayout.Label(isLocalPlaytest ? "本地试玩" : "联网竞拍演示");
             GUILayout.Label(session.Status);
 
             var view = session.CurrentView;
             if (view == null)
             {
-                var previousGuiEnabled = GUI.enabled;
-                GUI.enabled = session.CanStartClient;
-                var buttonLabel = session.IsStarting
-                    ? "正在连接专用服务端..."
-                    : session.Status == "尚未连接" ? "连接本地专用服务端" : "重新连接本地专用服务端";
-                if (GUILayout.Button(buttonLabel))
+                if (isLocalPlaytest)
                 {
-                    session.StartClient();
+                    if (GUILayout.Button("开始本地试玩"))
+                    {
+                        localSession.StartLocalPlaytest();
+                    }
                 }
-                GUI.enabled = previousGuiEnabled;
+                else
+                {
+                    DrawOnlineConnectButton();
+                }
 
                 GUILayout.EndArea();
                 return;
+            }
+
+            if (isLocalPlaytest && GUILayout.Button("重置本地试玩"))
+            {
+                localSession.ResetLocalPlaytest();
+                view = session.CurrentView;
             }
 
             if (view.IsWaitingForNextMatch)
@@ -119,6 +137,39 @@ namespace AuctionGame.Fusion
             }
 
             GUILayout.EndArea();
+        }
+
+        private void DrawModeSelection()
+        {
+            GUILayout.Label("竞拍演示");
+            GUILayout.Label("请选择验证方式");
+
+            if (localSession != null && GUILayout.Button("开始本地试玩（不连接网络）"))
+            {
+                localSession.StartLocalPlaytest();
+                _activeSession = localSession;
+            }
+
+            if (session != null)
+            {
+                DrawOnlineConnectButton();
+            }
+        }
+
+        private void DrawOnlineConnectButton()
+        {
+            var previousGuiEnabled = GUI.enabled;
+            GUI.enabled = session.CanStartClient;
+            var buttonLabel = session.IsStarting
+                ? "正在连接专用服务端..."
+                : session.Status == "尚未连接" ? "连接本地专用服务端" : "重新连接本地专用服务端";
+            if (GUILayout.Button(buttonLabel))
+            {
+                _activeSession = session;
+                session.StartClient();
+            }
+
+            GUI.enabled = previousGuiEnabled;
         }
 
         private static void DrawHiddenGrid(int width, int height)

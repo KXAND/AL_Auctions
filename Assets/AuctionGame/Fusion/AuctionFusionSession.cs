@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace AuctionGame.Fusion
 {
-    public sealed class AuctionFusionSession : MonoBehaviour, INetworkRunnerCallbacks
+    public sealed class AuctionFusionSession : MonoBehaviour, INetworkRunnerCallbacks, IAuctionPresentationSession
     {
         private static readonly ReliableKey ActionKey = ReliableKey.FromInts(0x41554354, 1);
         private static readonly ReliableKey ViewKey = ReliableKey.FromInts(0x41554354, 2);
