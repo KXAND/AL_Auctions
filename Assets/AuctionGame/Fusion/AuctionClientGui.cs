@@ -66,7 +66,9 @@ namespace AuctionGame.Fusion
 
             foreach (var knowledge in view.Knowledge)
             {
-                var identity = knowledge.Name == null ? "身份未揭示" : $"{knowledge.Name}，价值 {knowledge.Value}";
+                var identity = knowledge.Name == null
+                    ? "身份未揭示"
+                    : knowledge.HasValue ? $"{knowledge.Name}，价值 {knowledge.Value}" : $"{knowledge.Name}，价值未揭示";
                 GUILayout.Label($"已知：{knowledge.Rarity}，位置({knowledge.X},{knowledge.Y})，尺寸 {knowledge.Width}×{knowledge.Height}，{identity}");
             }
 

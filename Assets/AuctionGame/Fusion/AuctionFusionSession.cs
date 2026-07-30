@@ -448,7 +448,8 @@ namespace AuctionGame.Fusion
                     Height = item.Height,
                     Rarity = item.Rarity.ToString(),
                     Name = item.Name,
-                    Value = item.Value
+                    HasValue = item.Value.HasValue,
+                    Value = item.Value.GetValueOrDefault()
                 }).ToArray(),
                 WinnerSlot = view.Settlement == null ? -1 : view.Settlement.WinnerSlot,
                 WinningBid = view.Settlement == null ? 0 : view.Settlement.WinningBid,
@@ -472,7 +473,8 @@ namespace AuctionGame.Fusion
                     Height = item.Height,
                     Rarity = item.Rarity.ToString(),
                     Name = item.Name,
-                    Value = item.Value
+                    HasValue = item.Value.HasValue,
+                    Value = item.Value.GetValueOrDefault()
                 }).ToArray()
             };
         }
@@ -499,7 +501,8 @@ namespace AuctionGame.Fusion
         public int Height;
         public string Rarity;
         public string Name;
-        public int? Value;
+        public bool HasValue;
+        public int Value;
     }
 
     [Serializable]
