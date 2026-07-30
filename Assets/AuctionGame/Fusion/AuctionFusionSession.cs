@@ -234,6 +234,7 @@ namespace AuctionGame.Fusion
         public string PublicClue;
         public AuctionWireClueChoice[] PrivateClueChoices;
         public string PrivateClueResult;
+        public AuctionWireKnowledge[] Knowledge;
         public int WinnerSlot;
         public int WinningBid;
 
@@ -251,6 +252,16 @@ namespace AuctionGame.Fusion
                     .Select(choice => new AuctionWireClueChoice { Id = choice.Id, Label = choice.Label })
                     .ToArray(),
                 PrivateClueResult = view.PrivateClueResult == null ? null : view.PrivateClueResult.Text,
+                Knowledge = view.Knowledge.Select(item => new AuctionWireKnowledge
+                {
+                    X = item.X,
+                    Y = item.Y,
+                    Width = item.Width,
+                    Height = item.Height,
+                    Rarity = item.Rarity.ToString(),
+                    Name = item.Name,
+                    Value = item.Value
+                }).ToArray(),
                 WinnerSlot = view.Settlement == null ? -1 : view.Settlement.WinnerSlot,
                 WinningBid = view.Settlement == null ? 0 : view.Settlement.WinningBid
             };
@@ -262,5 +273,17 @@ namespace AuctionGame.Fusion
     {
         public string Id;
         public string Label;
+    }
+
+    [Serializable]
+    public sealed class AuctionWireKnowledge
+    {
+        public int X;
+        public int Y;
+        public int Width;
+        public int Height;
+        public string Rarity;
+        public string Name;
+        public int? Value;
     }
 }

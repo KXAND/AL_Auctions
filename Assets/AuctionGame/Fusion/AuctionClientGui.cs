@@ -50,6 +50,12 @@ namespace AuctionGame.Fusion
                 GUILayout.Label($"我的私有线索：{view.PrivateClueResult}");
             }
 
+            foreach (var knowledge in view.Knowledge)
+            {
+                var identity = knowledge.Name == null ? "身份未揭示" : $"{knowledge.Name}，价值 {knowledge.Value}";
+                GUILayout.Label($"已知：{knowledge.Rarity}，位置({knowledge.X},{knowledge.Y})，尺寸 {knowledge.Width}×{knowledge.Height}，{identity}");
+            }
+
             if (view.Phase == "Analysis")
             {
                 foreach (var choice in view.PrivateClueChoices)
