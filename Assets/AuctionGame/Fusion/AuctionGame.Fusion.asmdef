@@ -1,0 +1,17 @@
+{
+  "name": "AuctionGame.Fusion",
+  "rootNamespace": "AuctionGame.Fusion",
+  "references": [
+    "AuctionGame.Core",
+    "Fusion.Unity"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
