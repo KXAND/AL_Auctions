@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 
-namespace AuctionGame
+namespace AuctionGame.Gameplay
 {
     public sealed class SimpleRuleAi
     {

@@ -1,6 +1,6 @@
 {
-  "name": "AuctionGame.Core",
-  "rootNamespace": "AuctionGame",
+  "name": "AuctionGame.Gameplay",
+  "rootNamespace": "AuctionGame.Gameplay",
   "references": [],
   "includePlatforms": [],
   "excludePlatforms": [],

@@ -1,7 +1,7 @@
 using System.Globalization;
 using UnityEngine;
 
-namespace AuctionGame.Fusion
+namespace AuctionGame.Network
 {
     public sealed class AuctionClientGui : MonoBehaviour
     {
@@ -24,12 +24,33 @@ namespace AuctionGame.Fusion
             }
         }
 
+        private void Start()
+        {
+            if (!AuctionDemoLaunch.TryConsume(out var launchMode))
+            {
+                return;
+            }
+
+            if (launchMode == AuctionDemoLaunchMode.Offline && localSession != null)
+            {
+                localSession.StartLocalPlaytest();
+                _activeSession = localSession;
+                return;
+            }
+
+            if (launchMode == AuctionDemoLaunchMode.Online && session != null)
+            {
+                _activeSession = session;
+                session.StartClient();
+            }
+        }
+
         private void OnGUI()
         {
             GUILayout.BeginArea(new Rect(24, 24, 500, 640), GUI.skin.box);
             if (_activeSession == null)
             {
-                DrawModeSelection();
+                DrawMenuPrompt();
                 GUILayout.EndArea();
                 return;
             }
@@ -139,21 +160,10 @@ namespace AuctionGame.Fusion
             GUILayout.EndArea();
         }
 
-        private void DrawModeSelection()
+        private static void DrawMenuPrompt()
         {
             GUILayout.Label("竞拍演示");
-            GUILayout.Label("请选择验证方式");
-
-            if (localSession != null && GUILayout.Button("开始本地试玩（不连接网络）"))
-            {
-                localSession.StartLocalPlaytest();
-                _activeSession = localSession;
-            }
-
-            if (session != null)
-            {
-                DrawOnlineConnectButton();
-            }
+            GUILayout.Label("请从主菜单选择游玩方式");
         }
 
         private void DrawOnlineConnectButton()

@@ -2,7 +2,7 @@
   "name": "AuctionGame.Tests.Editor",
   "rootNamespace": "AuctionGame.Tests",
   "references": [
-    "AuctionGame.Core"
+    "AuctionGame.Gameplay"
   ],
   "includePlatforms": [
     "Editor"

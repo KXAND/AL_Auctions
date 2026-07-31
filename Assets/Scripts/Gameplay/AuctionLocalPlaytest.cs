@@ -1,6 +1,6 @@
 using System;
 
-namespace AuctionGame
+namespace AuctionGame.Gameplay
 {
     public sealed class AuctionLocalPlaytest
     {

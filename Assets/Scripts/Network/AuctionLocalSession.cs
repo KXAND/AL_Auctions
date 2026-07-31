@@ -1,7 +1,8 @@
 using System;
+using AuctionGame.Gameplay;
 using UnityEngine;
 
-namespace AuctionGame.Fusion
+namespace AuctionGame.Network
 {
     public sealed class AuctionLocalSession : MonoBehaviour, IAuctionPresentationSession
     {

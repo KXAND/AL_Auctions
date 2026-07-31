@@ -1,4 +1,4 @@
-namespace AuctionGame.Fusion
+namespace AuctionGame.Network
 {
     public interface IAuctionPresentationSession
     {

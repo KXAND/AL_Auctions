@@ -246,7 +246,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d2119f06fba70824cb847edb5a5bac29, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: AuctionGame.Fusion::AuctionGame.Fusion.AuctionClientGui
+  m_EditorClassIdentifier: AuctionGame.Network::AuctionGame.Network.AuctionClientGui
   session: {fileID: 0}
 --- !u!114 &904860725
 MonoBehaviour:
@@ -259,7 +259,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2b09c58e2455a2a489d8992d6dfb7552, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: AuctionGame.Fusion::AuctionGame.Fusion.AuctionFusionSession
+  m_EditorClassIdentifier: AuctionGame.Network::AuctionGame.Network.AuctionFusionSession
   sessionName: auction-local
   initialAssets: 100
   playerCount: 4
@@ -289,7 +289,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 010559b716ebd4d4fb4afcb8ded68062, type: 3}
   m_Name:
-  m_EditorClassIdentifier: AuctionGame.Fusion::AuctionGame.Fusion.AuctionLocalSession
+  m_EditorClassIdentifier: AuctionGame.Network::AuctionGame.Network.AuctionLocalSession
   initialAssets: 100
   playerCount: 4
 --- !u!1 &1607833590

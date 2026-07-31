@@ -1,9 +1,10 @@
 {
-  "name": "AuctionGame.Fusion",
-  "rootNamespace": "AuctionGame.Fusion",
+  "name": "AuctionGame.Network",
+  "rootNamespace": "AuctionGame.Network",
   "references": [
-    "AuctionGame.Core",
-    "Fusion.Unity"
+    "AuctionGame.Gameplay",
+    "Fusion.Unity",
+    "Unity.TextMeshPro"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

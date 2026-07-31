@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace AuctionGame
+namespace AuctionGame.Gameplay
 {
     public sealed class AuctionRules
     {

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace AuctionGame
+namespace AuctionGame.Gameplay
 {
     public sealed class AuctionConnection
     {

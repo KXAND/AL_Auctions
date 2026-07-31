@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace AuctionGame
+namespace AuctionGame.Gameplay
 {
     public enum AuctionPhase { WaitingForPlayers, Analysis, Bidding, RoundReveal, Settlement }
     public enum ClueKind { RarityShape, RandomFullReveal }

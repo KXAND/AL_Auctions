@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using AuctionGame.Gameplay;
 using Fusion;
 using Fusion.Sockets;
 using UnityEngine;
 
-namespace AuctionGame.Fusion
+namespace AuctionGame.Network
 {
     public sealed class AuctionFusionSession : MonoBehaviour, INetworkRunnerCallbacks, IAuctionPresentationSession
     {

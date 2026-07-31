@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using UnityEngine;
 
-namespace AuctionGame.Fusion
+namespace AuctionGame.Network
 {
     public static class AuctionDedicatedServerBootstrap
     {

@@ -1432,6 +1432,31 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 3904031707490091233, guid: 390f8f2827c469646aa52fffde920581,
+        type: 3}
+      propertyPath: onClick.m_PersistentCalls.m_Calls.Array.data[3].m_Mode
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3904031707490091233, guid: 390f8f2827c469646aa52fffde920581,
+        type: 3}
+      propertyPath: onClick.m_PersistentCalls.m_Calls.Array.data[3].m_Target
+      value:
+      objectReference: {fileID: 8520140372040611872}
+    - target: {fileID: 3904031707490091233, guid: 390f8f2827c469646aa52fffde920581,
+        type: 3}
+      propertyPath: onClick.m_PersistentCalls.m_Calls.Array.data[3].m_MethodName
+      value: PlayOffline
+      objectReference: {fileID: 0}
+    - target: {fileID: 3904031707490091233, guid: 390f8f2827c469646aa52fffde920581,
+        type: 3}
+      propertyPath: onClick.m_PersistentCalls.m_Calls.Array.data[3].m_TargetAssemblyTypeName
+      value: AuctionGame.Network.AuctionMainMenu, AuctionGame.Network
+      objectReference: {fileID: 0}
+    - target: {fileID: 3904031707490091233, guid: 390f8f2827c469646aa52fffde920581,
+        type: 3}
+      propertyPath: onClick.m_PersistentCalls.m_Calls.Array.data[3].m_Arguments.m_ObjectArgumentAssemblyTypeName
+      value:
+      objectReference: {fileID: 0}
     - target: {fileID: 3948182611937641629, guid: 390f8f2827c469646aa52fffde920581,
         type: 3}
       propertyPath: 'm_ActiveFontFeatures.Array.data[0]'
@@ -1581,6 +1606,31 @@ PrefabInstance:
         type: 3}
       propertyPath: 'm_ActiveFontFeatures.Array.data[0]'
       value: 1801810542
+      objectReference: {fileID: 0}
+    - target: {fileID: 6041613309782478776, guid: 390f8f2827c469646aa52fffde920581,
+        type: 3}
+      propertyPath: onClick.m_PersistentCalls.m_Calls.Array.data[3].m_Mode
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6041613309782478776, guid: 390f8f2827c469646aa52fffde920581,
+        type: 3}
+      propertyPath: onClick.m_PersistentCalls.m_Calls.Array.data[3].m_Target
+      value:
+      objectReference: {fileID: 8520140372040611872}
+    - target: {fileID: 6041613309782478776, guid: 390f8f2827c469646aa52fffde920581,
+        type: 3}
+      propertyPath: onClick.m_PersistentCalls.m_Calls.Array.data[3].m_MethodName
+      value: PlayOnline
+      objectReference: {fileID: 0}
+    - target: {fileID: 6041613309782478776, guid: 390f8f2827c469646aa52fffde920581,
+        type: 3}
+      propertyPath: onClick.m_PersistentCalls.m_Calls.Array.data[3].m_TargetAssemblyTypeName
+      value: AuctionGame.Network.AuctionMainMenu, AuctionGame.Network
+      objectReference: {fileID: 0}
+    - target: {fileID: 6041613309782478776, guid: 390f8f2827c469646aa52fffde920581,
+        type: 3}
+      propertyPath: onClick.m_PersistentCalls.m_Calls.Array.data[3].m_Arguments.m_ObjectArgumentAssemblyTypeName
+      value:
       objectReference: {fileID: 0}
     - target: {fileID: 6119572160549682180, guid: 390f8f2827c469646aa52fffde920581,
         type: 3}
@@ -1885,8 +1935,43 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 8520140370865615965, guid: 390f8f2827c469646aa52fffde920581,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8520140372040611872}
   m_SourcePrefab: {fileID: 100100000, guid: 390f8f2827c469646aa52fffde920581, type: 3}
+--- !u!114 &8520140372040611870 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 3753601228255353911, guid: 390f8f2827c469646aa52fffde920581,
+    type: 3}
+  m_PrefabInstance: {fileID: 8520140372040611869}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+--- !u!1 &8520140372040611871 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 8520140370865615965, guid: 390f8f2827c469646aa52fffde920581,
+    type: 3}
+  m_PrefabInstance: {fileID: 8520140372040611869}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &8520140372040611872
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8520140372040611871}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2106c80ef384433478cc7108cc4c0d47, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: AuctionGame.Network::AuctionGame.Network.AuctionMainMenu
+  offlineButtonLabel: {fileID: 8520140372040611870}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

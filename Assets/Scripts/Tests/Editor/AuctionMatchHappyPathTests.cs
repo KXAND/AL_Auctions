@@ -1,5 +1,5 @@
 using System.Linq;
-using AuctionGame;
+using AuctionGame.Gameplay;
 using NUnit.Framework;
 
 namespace AuctionGame.Tests
