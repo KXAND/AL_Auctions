@@ -1,0 +1,13 @@
+{
+    "name": "ItemsRefactorTests",
+    "rootNamespace": "AuctionGame.Tests",
+    "references": [
+        "GeneralGameAssembly"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

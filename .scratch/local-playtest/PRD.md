@@ -8,7 +8,7 @@ Status: ready-for-agent
 
 ## Solution
 
-在 AuctionDemo 中提供显式的本地试玩入口。一次本地试玩以一个长期存活的本地玩家身份开始，由 AI 补齐其余 `P - 1` 个玩家席位，并在单进程内使用现有竞拍规则完成分析、出价、揭示、结算和连续对局。它不创建 Fusion 或 Photon 网络对象。
+在 AuctionDemo 中提供显式的本地试玩入口。`GameManager` 为每局创建全新的进程内 `Authority`，以一个长期存活的本地玩家身份开始，由 AI 补齐其余 `P - 1` 个玩家席位，并通过本地 `AuctionManager` 完成分析、出价、揭示、结算和连续对局。它不创建 Fusion 或 Photon 网络对象。
 
 结算展示约三秒后自动开始下一局；本地玩家资产在同一次试玩中跨局累积。提供重置本地试玩操作，以初始资产建立新的本地玩家身份。联网入口保留为清晰独立的操作，且不自动连接。
 
@@ -29,28 +29,28 @@ Status: ready-for-agent
 
 ## Implementation Decisions
 
-- 本地试玩以一个独立的本地会话承载，直接驱动现有竞拍核心；不创建网络运行器、不调用会话匹配或网络序列化。
-- 本地会话创建一个长期存活的本地玩家身份，并通过现有席位规则让 AI 补齐空席位；不将默认的三个 AI 硬编码为规则。
-- 本地会话负责时间推进、结算展示等待、下一局启动与重置生命周期，并与联网对局保持相同的竞拍语义。
-- 展示与动作使用共享边界，使本地会话和 Fusion 会话都能向同一界面提供席位视角并接收真人席位动作。
+- `GameManager` 保存本地运行内资产，并为每局确定 `matchId`、固定参赛名单和可信初始资产，再创建全新的本地 `Authority`。
+- 本地玩家和补位 AI 都使用 Controller，并通过同一个本地 `AuctionManager` 提交 `ActionRequest`；不将默认的三个 AI 硬编码为规则。
+- 本地 GM 直接连接进程内 Authority 并推进其时间；结算后由 `GameManager` 幂等保存真人资产变化、销毁旧 Authority，再创建下一局。
+- 本地与联网模式共用 `ActionRequest`、`AuthorityResult`、`AuthorityState`、`AuthorityGameEvent` 和 `VisibleRecord` 契约。
 - 联网入口保留在 AuctionDemo 中，但必须与本地试玩入口显式区分，且场景加载时不得自动连接。
 - 本地试玩支持 Unity Editor Play Mode 与普通桌面构建；服务端启动参数不进入本地试玩。
 
 ## Testing Decisions
 
-- 本地试玩的高层测试通过可见席位视角、真人动作和资产结果验证完整行为，不断言 Fusion 回调或本地会话内部字段。
+- 本地试玩的高层测试通过 `VisibleRecord`、真人动作和资产结果验证完整行为，不断言 Fusion 回调或 GameManager 内部字段。
 - 在无服务端和无网络运行器的条件下验证一名本地玩家与 `P - 1` 个 AI 能完成对局。
 - 验证本地玩家资产跨局累积，重置试玩后恢复初始资产。
-- 验证本地试玩和联网对局使用同一竞拍核心语义；既有 Core 行为测试继续通过。
+- 验证本地试玩和联网对局使用同一 Authority 语义；既有 Authority 行为测试继续通过。
 - Fusion 烟测继续作为独立验收，不承担规则边界测试。
 
 ## Out of Scope
 
 - 局域网多人、同机多真人、房间发现或新的网络传输实现。
-- 移除 Fusion 包、重写联网专用服务端或改变联网对局权威。
+- 移除 Fusion 包、改变 `AuctionServer → MatchId → Authority` 的联网边界。
 - 长期账号、资产持久化和本地试玩存档。
 
 ## Further Notes
 
 - 本地试玩不是局域网模式；局域网能力需要单独的传输与发现设计。
-- 本功能遵循 ADR-0004 和 ADR-0006：联网对局使用 Fusion 专用服务端权威，本地试玩使用进程内权威。
+- 本功能遵循 ADR-0004 和 ADR-0006：联网由 `AuctionServer` 通过 Fusion 路由到单局 Authority，本地试玩直接使用进程内 Authority。

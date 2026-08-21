@@ -12,3 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 591d662dec81b754394feb90f575ad46, type: 3}
   m_Name: GameManager
   m_EditorClassIdentifier: 
+  _itemCatalog: {fileID: 11400000, guid: 8f5702171928d984896416c8ac7eb5fd,
+    type: 2}
+  clueCatalog: {fileID: 11400000, guid: 34b5aa101fde3fb46ba00e7d8634328e, type: 2}

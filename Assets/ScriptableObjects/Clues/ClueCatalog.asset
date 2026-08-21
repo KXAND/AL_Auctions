@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 25660fc2cf174d243b81783410a2fa7c, type: 3}
+  m_Name: ClueCatalog
+  m_EditorClassIdentifier: GeneralGameAssembly::AuctionGame.ClueCatalog
+  clues:
+  - {fileID: 11400000, guid: 5d327372d817de54090e83a4379a4b24, type: 2}
+  - {fileID: 11400000, guid: 9aa96a2bea0ed4146808fb1775dac508, type: 2}
+  - {fileID: 11400000, guid: fe072ecaf220e7643950fac7f7aa5553, type: 2}
+  - {fileID: 11400000, guid: e7560a91741e6404289ae9c644308909, type: 2}
+  - {fileID: 11400000, guid: bea7f4cead07be8498cea6a48ad0da9c, type: 2}
+  - {fileID: 11400000, guid: 1631d873d418eca459800ea6d40ad0b7, type: 2}
+  - {fileID: 11400000, guid: 510c647ecb1e30344a89851f6cd9e178, type: 2}
+  - {fileID: 11400000, guid: b637fedd2520b73419cd6e2c7f30be50, type: 2}
+  - {fileID: 11400000, guid: f623f1825fdfde040952023f88a955cb, type: 2}
+  - {fileID: 11400000, guid: 38e14c2d8120bbb4880428a65278b831, type: 2}
+  - {fileID: 11400000, guid: 6e1e6f04a52f3fa48b6113394a7d8e0e, type: 2}
+  - {fileID: 11400000, guid: d471d3e256ec94f4893f1eb7ad05389f, type: 2}
+  - {fileID: 11400000, guid: 3677225915ba40a4a9003936944b6315, type: 2}
+  - {fileID: 11400000, guid: 65bbb8aee8fd9334493fba478eb310a6, type: 2}
+  - {fileID: 11400000, guid: 17bccc566db2ae54d80a292a0fda3841, type: 2}
+  - {fileID: 11400000, guid: f3cd43026c316664b92a323cab9df802, type: 2}
+  - {fileID: 11400000, guid: 71e8b25a2bd39cb4da19ba0aac45d308, type: 2}
+  - {fileID: 11400000, guid: af1e808e20f90274ca6144b5d2ba8cfd, type: 2}
+  - {fileID: 11400000, guid: fc0aaa4b4c73e404bba24cf79b13d804, type: 2}
+  - {fileID: 11400000, guid: d04c49e80365cff4a8db0faee8eab3cd, type: 2}
