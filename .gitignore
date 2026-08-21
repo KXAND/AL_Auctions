@@ -1,3 +1,9 @@
+/ref
+/docs/*
+!/docs/architecture/
+!/docs/architecture/auctionMy/
+!/docs/architecture/auctionMy/**
+.codex/
 # This .gitignore file should be placed at the root of your Unity project directory
 #
 # Get latest from https://github.com/github/gitignore/blob/master/Unity.gitignore
