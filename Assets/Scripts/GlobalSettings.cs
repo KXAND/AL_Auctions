@@ -43,6 +43,7 @@ namespace AuctionGame
         public const decimal LossDistributionRatio = 1m;
 
         public static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(5);
+        public static readonly TimeSpan AuthenticationTimeout = TimeSpan.FromSeconds(10);
         public const int ReconnectAttempts = 3;
         public static readonly TimeSpan ReconnectInterval = TimeSpan.FromSeconds(1);
 

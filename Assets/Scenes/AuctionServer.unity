@@ -150,6 +150,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: GeneralGameAssembly::AuctionGame.AuctionServer
   sessionName: auction-local
   clueCatalog: {fileID: 11400000, guid: 34b5aa101fde3fb46ba00e7d8634328e, type: 2}
+  itemCatalog: {fileID: 11400000, guid: 8f5702171928d984896416c8ac7eb5fd, type: 2}
 --- !u!4 &1835672470
 Transform:
   m_ObjectHideFlags: 0

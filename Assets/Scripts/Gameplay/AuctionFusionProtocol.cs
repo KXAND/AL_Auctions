@@ -8,14 +8,27 @@ namespace AuctionGame
 {
     internal static class AuctionFusionProtocol
     {
-        public static readonly ReliableKey MessageKey = ReliableKey.FromInts(0x41554354, 3);
+        private const int MessageKeyMagic = 0x41554354;
+        private const int MessageKeyVersion = 3;
 
         public const string Authenticate = "authenticate";
         public const string Authenticated = "authenticated";
+        public const string AuthenticationRejected = "authentication-rejected";
         public const string Action = "action";
         public const string QueryState = "query-state";
         public const string Result = "result";
         public const string State = "state";
+
+        public static ReliableKey CreateMessageKey(int sequence)
+        {
+            return ReliableKey.FromInts(MessageKeyMagic, MessageKeyVersion, sequence);
+        }
+
+        public static bool IsMessageKey(ReliableKey key)
+        {
+            key.GetInts(out int magic, out int version, out _, out _);
+            return magic == MessageKeyMagic && version == MessageKeyVersion;
+        }
 
         public static byte[] Encode(string type, object payload)
         {

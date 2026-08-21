@@ -7,9 +7,10 @@ using UnityEngine;
 
 namespace AuctionGame
 {
-    public sealed class AuctionServer : MonoBehaviour, INetworkRunnerCallbacks
+    public sealed class AuctionServer : SimulationBehaviour, INetworkRunnerCallbacks
     {
-        private static readonly TimeSpan MatchmakingDelay = TimeSpan.FromSeconds(1);
+        private static readonly TimeSpan MatchmakingDelay = TimeSpan.FromSeconds(30);
+        private static readonly TimeSpan MatchmakingLogInterval = TimeSpan.FromSeconds(5);
         private static readonly TimeSpan SettlementDisplayDuration = TimeSpan.FromSeconds(3);
 
         [SerializeField] private string sessionName = "auction-local";
@@ -18,6 +19,8 @@ namespace AuctionGame
 
         private readonly Dictionary<PlayerRef, string> _connections = new Dictionary<PlayerRef, string>();
         private readonly Dictionary<string, PlayerRef> _playerConnections = new Dictionary<string, PlayerRef>();
+        private readonly Dictionary<PlayerRef, string> _connectionCredentials = new Dictionary<PlayerRef, string>();
+        private readonly HashSet<string> _activeCredentials = new HashSet<string>(StringComparer.Ordinal);
         private readonly List<string> _waitingPlayers = new List<string>();
         private readonly Dictionary<string, string> _playerMatches = new Dictionary<string, string>();
         private readonly Dictionary<string, MatchContext> _matches = new Dictionary<string, MatchContext>();
@@ -26,10 +29,23 @@ namespace AuctionGame
 
         private ItemCatalog _itemCatalog;
         private NetworkRunner _runner;
+        private bool _startingServer;
+        private bool _serverRestartScheduled;
+        private bool _stoppingServer;
+        private DateTime _serverRestartDeadlineUtc;
         private TimeSpan _matchmakingElapsed;
+        private TimeSpan _matchmakingLogElapsed;
         private long _identitySequence;
+        private int _reliableMessageSequence;
 
-        private async void Start()
+        private void OnEnable()
+        {
+            Debug.Log($"[{DateTime.UtcNow:O}] AuctionServer enabled. Scene={gameObject.scene.name}, " +
+                $"ActiveInHierarchy={gameObject.activeInHierarchy}, BatchMode={Application.isBatchMode}, " +
+                $"TimeScale={Time.timeScale}.");
+        }
+
+        private void Start()
         {
             bool dedicatedLaunch = Application.isBatchMode ||
                 System.Environment.GetCommandLineArgs().Any(argument =>
@@ -40,50 +56,95 @@ namespace AuctionGame
                 return;
             }
 
+            if (!ValidateConfiguration())
+            {
+                enabled = false;
+                return;
+            }
+
             _itemCatalog = itemCatalog;
+            StartServer();
+        }
+
+        private async void StartServer()
+        {
+            if (_startingServer || _runner != null || _stoppingServer)
+            {
+                return;
+            }
+
+            _startingServer = true;
+            _serverRestartScheduled = false;
             GameObject runnerObject = new GameObject("Auction Server Runner");
             DontDestroyOnLoad(runnerObject);
             NetworkRunner runner = runnerObject.AddComponent<NetworkRunner>();
             runner.AddCallbacks(this);
-            StartGameResult result = await runner.StartGame(new StartGameArgs
+            _runner = runner;
+            try
             {
-                GameMode = GameMode.Server,
-                SessionName = sessionName,
-                PlayerCount = Math.Max(GlobalSettings.PlayerCount, 64),
-                IsVisible = false,
-                IsOpen = true
-            });
-            if (result.Ok)
-            {
-                _runner = runner;
-                Debug.Log("AuctionServer 已启动。");
+                StartGameResult result = await runner.StartGame(new StartGameArgs
+                {
+                    GameMode = GameMode.Server,
+                    SessionName = sessionName,
+                    PlayerCount = Math.Max(GlobalSettings.PlayerCount, 64),
+                    IsVisible = false,
+                    IsOpen = true
+                });
+                if (!ReferenceEquals(_runner, runner))
+                {
+                    return;
+                }
+                if (result.Ok)
+                {
+                    runner.AddGlobal(this);
+                    Debug.Log($"[{DateTime.UtcNow:O}] AuctionServer 已启动。");
+                }
+                else
+                {
+                    HandleServerFailure(
+                        runner,
+                        result.ErrorMessage ?? result.ShutdownReason.ToString());
+                }
             }
-            else
+            catch (Exception exception)
             {
-                Debug.LogError($"AuctionServer 启动失败：{result.ErrorMessage ?? result.ShutdownReason.ToString()}");
-                Destroy(runnerObject);
+                HandleServerFailure(runner, exception.Message);
+            }
+            finally
+            {
+                _startingServer = false;
             }
         }
 
         private void Update()
         {
-            if (_itemCatalog == null)
+            if (!_serverRestartScheduled || _stoppingServer || _startingServer || _runner != null ||
+                DateTime.UtcNow < _serverRestartDeadlineUtc)
             {
                 return;
             }
-            TimeSpan delta = TimeSpan.FromSeconds(Time.deltaTime);
-            _matchmakingElapsed += delta;
-            if (_waitingPlayers.Count >= GlobalSettings.PlayerCount ||
-                _waitingPlayers.Count > 0 && _matchmakingElapsed >= MatchmakingDelay)
+
+            _serverRestartScheduled = false;
+            StartServer();
+        }
+
+        public override void FixedUpdateNetwork()
+        {
+            if (_runner == null || !_runner.IsServer)
             {
-                TryCreateMatches();
-                _matchmakingElapsed = TimeSpan.Zero;
+                return;
             }
 
-            foreach (MatchContext context in _matches.Values.ToArray())
+            TimeSpan delta = TimeSpan.FromSeconds(_runner.DeltaTime);
+            MatchContext[] activeMatches = _matches.Values.ToArray();
+            UpdateMatchmakingDiagnostics(delta);
+            UpdateMatchmaking(delta);
+
+            foreach (MatchContext context in activeMatches)
             {
                 if (!context.Completed)
                 {
+                    context.AiManager.AdvanceServerTime(delta);
                     context.Authority.AdvanceTime(delta);
                     continue;
                 }
@@ -96,9 +157,155 @@ namespace AuctionGame
             }
         }
 
+        private void UpdateMatchmakingDiagnostics(TimeSpan delta)
+        {
+            if (_waitingPlayers.Count == 0)
+            {
+                _matchmakingLogElapsed = TimeSpan.Zero;
+                return;
+            }
+
+            _matchmakingLogElapsed += delta;
+            if (_matchmakingLogElapsed < MatchmakingLogInterval)
+            {
+                return;
+            }
+
+            _matchmakingLogElapsed = TimeSpan.Zero;
+            Debug.Log($"[{DateTime.UtcNow:O}] AuctionServer matchmaking tick. " +
+                $"FusionTick={_runner.Tick}, WaitingPlayers={_waitingPlayers.Count}, " +
+                $"Elapsed={_matchmakingElapsed.TotalSeconds:0.###}s, " +
+                $"FusionDelta={delta.TotalSeconds:0.######}s, " +
+                $"TimeScale={Time.timeScale:0.###}, Enabled={enabled}, " +
+                $"ActiveInHierarchy={gameObject.activeInHierarchy}.");
+        }
+
+        private void UpdateMatchmaking(TimeSpan delta)
+        {
+            if (_waitingPlayers.Count == 0)
+            {
+                _matchmakingElapsed = TimeSpan.Zero;
+                return;
+            }
+
+            _matchmakingElapsed += delta;
+            bool createdFullMatch = false;
+            while (_waitingPlayers.Count >= GlobalSettings.PlayerCount)
+            {
+                if (!TryCreateNextMatch(GlobalSettings.PlayerCount))
+                {
+                    return;
+                }
+                createdFullMatch = true;
+            }
+
+            if (createdFullMatch)
+            {
+                _matchmakingElapsed = TimeSpan.Zero;
+            }
+
+            if (_waitingPlayers.Count == 0 || _matchmakingElapsed < MatchmakingDelay)
+            {
+                return;
+            }
+
+            int humanCount = Math.Min(GlobalSettings.PlayerCount, _waitingPlayers.Count);
+            Debug.Log($"[{DateTime.UtcNow:O}] AuctionServer matchmaking delay reached. " +
+                $"FusionTick={_runner.Tick}, WaitingPlayers={_waitingPlayers.Count}, " +
+                $"Elapsed={_matchmakingElapsed.TotalSeconds:0.###}s, HumanPlayers={humanCount}.");
+            if (TryCreateNextMatch(humanCount))
+            {
+                _matchmakingElapsed = TimeSpan.Zero;
+            }
+        }
+
+        private bool ValidateConfiguration()
+        {
+            if (string.IsNullOrWhiteSpace(sessionName))
+            {
+                Debug.LogError("AuctionServer 配置无效：SessionName 不能为空。");
+                return false;
+            }
+            if (itemCatalog == null)
+            {
+                Debug.LogError("AuctionServer 配置无效：ItemCatalog 未赋值。");
+                return false;
+            }
+            if (clueCatalog == null)
+            {
+                Debug.LogError("AuctionServer 配置无效：ClueCatalog 未赋值。");
+                return false;
+            }
+            return true;
+        }
+
+        private void HandleServerFailure(NetworkRunner runner, string reason)
+        {
+            if (!ReferenceEquals(_runner, runner))
+            {
+                return;
+            }
+
+            _runner = null;
+            ResetConnectionsForServerRestart();
+            DestroyRunner(runner);
+            if (_stoppingServer)
+            {
+                return;
+            }
+
+            Debug.LogError($"[{DateTime.UtcNow:O}] AuctionServer 运行失败：{reason}");
+            _serverRestartDeadlineUtc = DateTime.UtcNow + GlobalSettings.ReconnectInterval;
+            _serverRestartScheduled = true;
+        }
+
+        private void ResetConnectionsForServerRestart()
+        {
+            foreach (KeyValuePair<PlayerRef, string> connection in _connections.ToArray())
+            {
+                string identity = connection.Value;
+                if (_playerMatches.TryGetValue(identity, out string matchId) &&
+                    _matches.ContainsKey(matchId))
+                {
+                    try
+                    {
+                        CreateTakeoverController(matchId, identity);
+                    }
+                    catch (Exception exception)
+                    {
+                        Debug.LogException(exception);
+                    }
+                }
+            }
+
+            _connections.Clear();
+            _playerConnections.Clear();
+            _connectionCredentials.Clear();
+            _activeCredentials.Clear();
+            _waitingPlayers.Clear();
+            _matchmakingElapsed = TimeSpan.Zero;
+        }
+
+        private static void DestroyRunner(NetworkRunner runner)
+        {
+            if (runner == null || runner.gameObject == null)
+            {
+                return;
+            }
+            if (Application.isPlaying)
+            {
+                Destroy(runner.gameObject);
+            }
+            else
+            {
+                DestroyImmediate(runner.gameObject);
+            }
+        }
+
         public void OnReliableDataReceived(NetworkRunner runner, PlayerRef player, ReliableKey key, ArraySegment<byte> data)
         {
-            if (!runner.IsServer || !key.Equals(AuctionFusionProtocol.MessageKey) || data.Count > 262144)
+            if (!ReferenceEquals(runner, _runner) || !runner.IsServer ||
+                !AuctionFusionProtocol.IsMessageKey(key) || data.Count > 262144)
             {
                 return;
             }
@@ -115,7 +322,7 @@ namespace AuctionGame
 
             if (envelope.Type == AuctionFusionProtocol.Authenticate)
             {
-                Authenticate(player, AuctionFusionProtocol.Payload<string>(envelope));
+                Authenticate(runner, player, AuctionFusionProtocol.Payload<string>(envelope));
                 return;
             }
             if (!_connections.TryGetValue(player, out string identity))
@@ -137,64 +344,117 @@ namespace AuctionGame
         {
             if (!_connections.TryGetValue(player, out string identity))
             {
+                Debug.LogWarning($"AuctionServer Fusion player left before business authentication. Player={player}.");
                 return;
             }
+            Debug.Log($"AuctionServer player disconnected. Player={player}, PlayerIdentity={identity}.");
             _connections.Remove(player);
             _playerConnections.Remove(identity);
             _waitingPlayers.Remove(identity);
+            ReleaseCredential(player);
             if (_playerMatches.TryGetValue(identity, out string matchId) && _matches.TryGetValue(matchId, out MatchContext context))
             {
                 CreateTakeoverController(matchId, identity);
             }
         }
 
-        private void Authenticate(PlayerRef player, string credentials)
+        private void Authenticate(NetworkRunner runner, PlayerRef player, string credentials)
         {
-            if (string.IsNullOrWhiteSpace(credentials) || _connections.ContainsKey(player))
+            if (_connections.TryGetValue(player, out string existingIdentity))
             {
+                Debug.Log($"AuctionServer repeated authentication accepted. Player={player}, " +
+                    $"PlayerIdentity={existingIdentity}.");
+                Send(runner, player, AuctionFusionProtocol.Authenticated, existingIdentity);
+                SendCurrentState(existingIdentity);
                 return;
             }
+            if (!TryAcceptCredential(player, credentials, out string rejectionReason))
+            {
+                Debug.LogWarning($"AuctionServer authentication rejected. Player={player}, " +
+                    $"Reason={rejectionReason}.");
+                Send(runner, player, AuctionFusionProtocol.AuthenticationRejected, rejectionReason);
+                return;
+            }
+
             string identity = $"runtime-{++_identitySequence}-{Guid.NewGuid():N}";
             _connections[player] = identity;
             _playerConnections[identity] = player;
             _runtimeAssets[identity] = GlobalSettings.InitialAssets;
             _waitingPlayers.Add(identity);
-            Send(player, AuctionFusionProtocol.Authenticated, identity);
-            Send(player, AuctionFusionProtocol.State,
+            Debug.Log($"[{DateTime.UtcNow:O}] AuctionServer authentication accepted. " +
+                $"FusionTick={runner.Tick}, Player={player}, PlayerIdentity={identity}, " +
+                $"WaitingPlayers={_waitingPlayers.Count}.");
+            Send(runner, player, AuctionFusionProtocol.Authenticated, identity);
+            Send(runner, player, AuctionFusionProtocol.State,
                 new AuthorityState(identity, 1, VisibleRecord.Waiting(null, _runtimeAssets[identity])));
         }
 
-        private void TryCreateMatches()
+        private bool TryAcceptCredential(PlayerRef player, string credentials, out string rejectionReason)
         {
-            while (_waitingPlayers.Count > 0)
+            if (!Guid.TryParseExact(credentials, "N", out Guid credentialId))
             {
-                string[] humans = _waitingPlayers.Take(GlobalSettings.PlayerCount).ToArray();
-                foreach (string human in humans)
+                rejectionReason = "凭证格式无效。";
+                return false;
+            }
+
+            string normalizedCredential = credentialId.ToString("N");
+            if (_activeCredentials.Contains(normalizedCredential))
+            {
+                rejectionReason = "凭证已被其他连接使用。";
+                return false;
+            }
+
+            _connectionCredentials[player] = normalizedCredential;
+            _activeCredentials.Add(normalizedCredential);
+            rejectionReason = null;
+            return true;
+        }
+
+        private void ReleaseCredential(PlayerRef player)
+        {
+            if (!_connectionCredentials.TryGetValue(player, out string credential))
+            {
+                return;
+            }
+
+            _connectionCredentials.Remove(player);
+            _activeCredentials.Remove(credential);
+        }
+
+        private bool TryCreateNextMatch(int humanCount)
+        {
+            Debug.Log($"AuctionServer creating next match. RequestedHumanPlayers={humanCount}, " +
+                $"WaitingPlayers={_waitingPlayers.Count}.");
+            string[] humans = _waitingPlayers.Take(humanCount).ToArray();
+            foreach (string human in humans)
+            {
+                _waitingPlayers.Remove(human);
+            }
+            try
+            {
+                CreateMatch(humans);
+                return true;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception);
+                for (int index = humans.Length - 1; index >= 0; index--)
                 {
-                    _waitingPlayers.Remove(human);
-                }
-                try
-                {
-                    CreateMatch(humans);
-                }
-                catch (Exception exception)
-                {
-                    Debug.LogException(exception);
-                    foreach (string human in humans.Where(_playerConnections.ContainsKey))
+                    string human = humans[index];
+                    if (_playerConnections.ContainsKey(human) && !_waitingPlayers.Contains(human))
                     {
-                        if (!_waitingPlayers.Contains(human))
-                        {
-                            _waitingPlayers.Add(human);
-                        }
+                        _waitingPlayers.Insert(0, human);
                     }
-                    break;
                 }
+                return false;
             }
         }
 
         private void CreateMatch(IReadOnlyList<string> humanPlayers)
         {
             string matchId = Guid.NewGuid().ToString("N");
+            Debug.Log($"AuctionServer CreateMatch entered. MatchId={matchId}, " +
+                $"HumanPlayers={humanPlayers.Count}.");
             List<MatchParticipant> participants = new List<MatchParticipant>();
             for (int index = 0; index < humanPlayers.Count; index++)
             {
@@ -220,10 +480,12 @@ namespace AuctionGame
                 _itemCatalog,
                 clueCatalog,
                 new System.Random());
+            Debug.Log($"AuctionServer Authority created. MatchId={matchId}.");
             GameObject aiManagerObject = new GameObject($"Server AI AuctionManager {matchId}");
             aiManagerObject.transform.SetParent(transform, false);
             AuctionManager aiManager = aiManagerObject.AddComponent<AuctionManager>();
             aiManager.StartServerAI(authority);
+            Debug.Log($"AuctionServer AI AuctionManager started. MatchId={matchId}.");
             MatchContext context = new MatchContext(matchId, authority, aiManager, humanPlayers.ToArray());
             _matches[matchId] = context;
 
@@ -245,8 +507,13 @@ namespace AuctionGame
 
             try
             {
+                Debug.Log($"AuctionServer preparing Authority match. MatchId={matchId}.");
                 authority.PrepareMatch(matchId, participants);
+                Debug.Log($"AuctionServer Authority match prepared. MatchId={matchId}.");
                 authority.StartMatch();
+                Debug.Log($"[{DateTime.UtcNow:O}] AuctionServer match started. " +
+                    $"FusionTick={_runner.Tick}, MatchId={matchId}, " +
+                    $"HumanPlayers={humanPlayers.Count}, AIPlayers={participants.Count - humanPlayers.Count}.");
             }
             catch
             {
@@ -336,6 +603,7 @@ namespace AuctionGame
             {
                 return;
             }
+            // TODO: AI 接管后同步 Authority 中的控制者类型，不在本次修改范围。
             AIController ai = new AIController(context.AiManager, new System.Random());
             context.AiControllers.Add(ai);
             context.AiManager.RegisterController(ai, playerIdentity);
@@ -403,18 +671,31 @@ namespace AuctionGame
 
         private void Send(PlayerRef player, string type, object payload)
         {
-            if (_runner == null)
+            Send(_runner, player, type, payload);
+        }
+
+        private void Send(NetworkRunner runner, PlayerRef player, string type, object payload)
+        {
+            if (runner == null || !runner.IsRunning)
             {
                 return;
             }
-            _runner.SendReliableDataToPlayer(
+            runner.SendReliableDataToPlayer(
                 player,
-                AuctionFusionProtocol.MessageKey,
+                NextReliableMessageKey(),
                 AuctionFusionProtocol.Encode(type, payload));
+        }
+
+        private ReliableKey NextReliableMessageKey()
+        {
+            _reliableMessageSequence = unchecked(_reliableMessageSequence + 1);
+            return AuctionFusionProtocol.CreateMessageKey(_reliableMessageSequence);
         }
 
         public void OnPlayerJoined(NetworkRunner runner, PlayerRef player)
         {
+            Debug.Log($"[{DateTime.UtcNow:O}] AuctionServer Fusion player joined. " +
+                $"FusionTick={runner.Tick}, Player={player}.");
         }
         public void OnConnectRequest(NetworkRunner runner, NetworkRunnerCallbackArgs.ConnectRequest request, byte[] token)
         {
@@ -424,12 +705,14 @@ namespace AuctionGame
         }
         public void OnConnectFailed(NetworkRunner runner, NetAddress remoteAddress, NetConnectFailedReason reason)
         {
+            HandleServerFailure(runner, reason.ToString());
         }
         public void OnCustomAuthenticationResponse(NetworkRunner runner, Dictionary<string, object> data)
         {
         }
         void INetworkRunnerCallbacks.OnDisconnectedFromServer(NetworkRunner runner, NetDisconnectReason reason)
         {
+            HandleServerFailure(runner, reason.ToString());
         }
         public void OnHostMigration(NetworkRunner runner, HostMigrationToken hostMigrationToken)
         {
@@ -460,9 +743,27 @@ namespace AuctionGame
         }
         public void OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason)
         {
+            HandleServerFailure(runner, shutdownReason.ToString());
         }
         public void OnUserSimulationMessage(NetworkRunner runner, SimulationMessagePtr message)
         {
+        }
+
+        private void OnApplicationQuit()
+        {
+            _stoppingServer = true;
+            _serverRestartScheduled = false;
+        }
+
+        private void OnDisable()
+        {
+            Debug.Log($"AuctionServer disabled. Scene={gameObject.scene.name}, " +
+                $"ActiveInHierarchy={gameObject.activeInHierarchy}, TimeScale={Time.timeScale}.");
+        }
+
+        private void OnDestroy()
+        {
+            Debug.Log("AuctionServer destroyed.");
         }
 
         private sealed class MatchContext

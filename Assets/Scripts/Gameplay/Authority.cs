@@ -125,7 +125,6 @@ namespace AuctionGame
                 TimeSpan step = remainingDelta < _remainingTime ? remainingDelta : _remainingTime;
                 _remainingTime -= step;
                 remainingDelta -= step;
-                BroadcastStates();
             }
         }
 
@@ -683,4 +682,3 @@ namespace AuctionGame
         }
     }
 }
-

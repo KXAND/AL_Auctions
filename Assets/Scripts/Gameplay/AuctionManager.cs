@@ -142,8 +142,28 @@ namespace AuctionGame
 
         public void Update()
         {
+            if (Mode == AuctionManagerMode.ServerAI)
+            {
+                return;
+            }
+
             TimeSpan deltaTime = TimeSpan.FromSeconds(Time.deltaTime);
 
+            AdvanceFrame(deltaTime);
+        }
+
+        public void AdvanceServerTime(TimeSpan deltaTime)
+        {
+            if (Mode != AuctionManagerMode.ServerAI)
+            {
+                throw new InvalidOperationException("只有服务端 AI AuctionManager 可由 AuctionServer 推进时间。");
+            }
+
+            AdvanceFrame(deltaTime);
+        }
+
+        private void AdvanceFrame(TimeSpan deltaTime)
+        {
             if (deltaTime < TimeSpan.Zero)
             {
                 throw new ArgumentOutOfRangeException(nameof(deltaTime));
@@ -151,10 +171,12 @@ namespace AuctionGame
             if (Mode == AuctionManagerMode.Local)
             {
                 _localAuthority?.AdvanceTime(deltaTime);
+                RefreshLocalVisibleRecords();
             }
             if (Mode == AuctionManagerMode.OnlineClient)
             {
                 UpdateReconnect(deltaTime);
+                UpdateNetworkHandshake(deltaTime);
                 UpdateOnlineVisibleTimes(deltaTime);
             }
 
@@ -180,6 +202,28 @@ namespace AuctionGame
                 {
                     ai.Update(deltaTime);
                 }
+            }
+        }
+
+        private void RefreshLocalVisibleRecords()
+        {
+            if (_localAuthority == null)
+            {
+                return;
+            }
+
+            foreach (string playerIdentity in _controllers.Values.Distinct().ToArray())
+            {
+                VisibleRecord current = GetVisibleRecord(playerIdentity);
+                if (current == null ||
+                    current.RemainingTime <= TimeSpan.Zero ||
+                    current.Phase == MatchPhase.Waiting ||
+                    current.Phase == MatchPhase.Settlement)
+                {
+                    continue;
+                }
+
+                ApplyVisibleRecord(playerIdentity, _localAuthority.GetVisibleRecord(playerIdentity));
             }
         }
 

@@ -73,6 +73,23 @@ namespace AuctionGame.Tests
         }
 
         [Test]
+        public void TimeProgressOnlyBroadcastsWhenPhaseChanges()
+        {
+            int stateCount = 0;
+            _authority.StateCreated += state => stateCount++;
+
+            TimeSpan elapsed = TimeSpan.FromSeconds(1);
+            _authority.AdvanceTime(elapsed);
+
+            Assert.That(stateCount, Is.Zero);
+
+            _authority.AdvanceTime(GlobalSettings.BiddingDuration - elapsed);
+
+            Assert.That(_authority.CurrentPhase, Is.EqualTo(MatchPhase.Revealing));
+            Assert.That(stateCount, Is.EqualTo(GlobalSettings.PlayerCount));
+        }
+
+        [Test]
         public void UnsettledRevealCompletesIntoNextAnalysisRound()
         {
             SubmitAllBids(0, 0, 0, 0);
